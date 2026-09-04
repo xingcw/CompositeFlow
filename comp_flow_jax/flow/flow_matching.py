@@ -192,6 +192,23 @@ def create_state(cfg, key):
     )
 
 
+def _reinit_adaptation(cfg, state, key):
+    """Fresh adaptation weights, keeping the TrainState's apply_fn and tx.
+
+    Going through create_state builds a new optax closure and a new bound
+    apply_fn. Both are static pytree fields, so the treedef changed on every
+    refit and the jitted epoch missed its cache and recompiled. Only the
+    weights need resetting; the key is split exactly as create_state splits it
+    so the draw is unchanged.
+    """
+    _, k_adapt = jax.random.split(key)
+    model = make_model(cfg, cfg.adaptation_num_layers)
+    params = model.init(k_adapt, jnp.zeros((1, cfg.state_dim)),
+                        jnp.zeros((1, 1)), jnp.zeros((1, cfg.cond_dim)))
+    ts = state.adaptation
+    return ts.replace(step=0, params=params, opt_state=ts.tx.init(params)), params
+
+
 def _ema_update(shadow, params, decay):
     return jax.tree.map(lambda s, p: decay * s + (1.0 - decay) * p, shadow, params)
 
@@ -540,10 +557,10 @@ def train_adaptation_flow(cfg, state, key, batch, verbose=True):
     n_val, _ = _split(batch.state.shape[0], cfg.holdout_ratio)
     s_tr, a_tr, ns_tr = batch.state[n_val:], batch.action[n_val:], batch.next_state[n_val:]
 
-    fresh = create_state(cfg, k_init)
+    adaptation, params = _reinit_adaptation(cfg, state, k_init)
     state = state.replace(
-        adaptation=fresh.adaptation,
-        adaptation_ema=fresh.adaptation_ema,
+        adaptation=adaptation,
+        adaptation_ema=params if cfg.use_ema else {},
         sa_adapt=norm_lib.fit_state_action(s_tr, a_tr),
         ns_adapt=norm_lib.fit(ns_tr),
         adaptation_fitted=True,
