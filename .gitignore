@@ -35,3 +35,7 @@ outputs/
 # Training and job logs
 training_output/
 slurm_logs/
+.claude/
+# keep setup and experiment scripts despite *.sh
+!env.sh
+!experiments/*.sh

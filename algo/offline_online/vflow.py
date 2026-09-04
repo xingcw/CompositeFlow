@@ -433,7 +433,8 @@ class VFlowPolicy(object):
             )
             print(f"Source Flow Matching Finished.")
         except AttributeError:
-             print("[Error] `train_source_flow_matching` method not found in FlowMatching class.")
+             import traceback; traceback.print_exc()
+             print("[Error] AttributeError during source flow pretraining (see traceback above).")
         except Exception as e:
              print(f"[Error] Exception during source flow pretraining: {e}")
 
@@ -454,7 +455,8 @@ class VFlowPolicy(object):
             )
              print(f"Adaptation Flow Matching Finished.")
         except AttributeError:
-             print("[Error] `train_adaptation_flow_matching` method not found in FlowMatching class.")
+             import traceback; traceback.print_exc()
+             print("[Error] AttributeError during adaptation flow training (see traceback above).")
         except Exception as e:
              print(f"[Error] Exception during adaptation flow training: {e}")
 

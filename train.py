@@ -99,6 +99,7 @@ if __name__ == "__main__":
     parser.add_argument('--tartype', default="medium", help='Dataset type for offline target domain (e.g., random, medium)')
     parser.add_argument('--shift_level', default=0.5, help='Scale/type of dynamics shift')
     parser.add_argument("--seed", default=0, type=int, help="Random seed")
+    parser.add_argument('--mode', default=1, type=int, help='Training mode (only 1 = offline-source + online-target is implemented)')
     parser.add_argument('--tar_env_interact_interval', default=10, type=int, help='Interaction frequency with target env (Modes 0, 1)')
     parser.add_argument('--max_step', default=int(4e5), type=int, help="Max *gradient steps*")
     # parser.add_argument('--max_step', default=int(4e5), type=int, help="Max *gradient steps*")
@@ -257,6 +258,11 @@ if __name__ == "__main__":
     np.random.seed(args.seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+    if os.environ.get('COMPFLOW_TF32', '0') == '1':
+        # Opt-in: TF32 matmuls (~1.5x faster flow-model inference on Ampere+ GPUs; slightly lower matmul precision)
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        print("INFO: TF32 matmuls enabled (COMPFLOW_TF32=1)")
     if torch.cuda.is_available():
          torch.cuda.manual_seed_all(args.seed)
     random.seed(args.seed)

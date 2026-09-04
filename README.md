@@ -76,3 +76,45 @@ Please consider citing us if you find our work useful!
   year      = {2025}
 }
 ```
+
+## Reproduction notes (Hopper Morphology, RTX 5090, Sep 2026)
+
+### Environment
+The README pin (python 3.8 / torch 2.2) cannot run on Blackwell GPUs (sm_120), so the env used here is
+python 3.10 + torch 2.8.0+cu128 with gym 0.18.3, mujoco-py 2.1.2.14 (mujoco210) and D4RL. `source env.sh`
+activates it. Notes:
+- gym 0.18.3 and mujoco-py need `pip install --no-build-isolation` (gym also needs its `opencv-python>=3.` specifier patched).
+- The D4RL server (rail.eecs.berkeley.edu) was unreachable; datasets were fetched from the HuggingFace mirror `imone/D4RL`.
+- `COMPFLOW_TF32=1` enables TF32 matmuls in `train.py` (~1.5x faster dynamics-gap estimation).
+
+### Code fixes needed to run the released code
+- `train.py`: added the `--mode` flag used in the README commands (argparse rejected it).
+- `optimal_transport_old.py`: `OTPlanSampler.get_map` body was over-indented (SyntaxError on import).
+- `flow_matching.py`: the adaptation flow called `sample_location_and_conditional_flow_condtion_version` (typo);
+  the AttributeError was swallowed by a broad handler in `vflow.py`, so the online flow was never trained.
+  Fixed the name and passed `eta` through. `vflow.py` now prints the traceback in those handlers.
+
+### Protocol
+Target env `hopper-morph-foot`, shift `hard` (foot 0.4x, matches paper Appendix K.1.3). 400K gradient steps,
+target interaction every 10 steps (40K interactions), 100K warmup gate, batch 128, eval every 10K steps;
+return reported at 400K. CompFlow: beta (`--dynamics_gap_reward_scale`) = 0.1, xi (`--filter_percent`) = 0.5,
+`--n_samples 30`. Launcher: `experiments/run_hopper_morph.sh`; results: `experiments/collect_results.py`.
+
+### Results (return at 400K steps)
+| Setting | Reproduced | Paper Table 1 |
+|---|---|---|
+| BC-SAC, medium-replay (3 seeds) | 343.8 +/- 5.8 (352 / 339 / 341) | 346 +/- 4 |
+| CompFlow, medium (1 seed) | 343 (last 12 evals: 282-366, mean ~323) | 604 +/- 173 |
+
+Runs stopped early to free the GPU (last eval, not 400K): CompFlow medium-replay 340 at 150K (paper 355 +/- 6);
+CompFlow medium-expert 481 at 130K (paper 462 +/- 89).
+
+BC-SAC matches the paper. CompFlow on medium did not: it converged to the same ~340 plateau as BC-SAC.
+Caveats: single seed on a row whose paper std is 173; the paper selects beta in {0.01, 0.1, 0.2} and xi in
+{30%, 50%} per task without reporting the chosen pair; the released config uses flow width 512 while paper
+Table 4 lists 256; `--eta` is not read by the released flow code (OT cost has no condition term).
+
+### Cost
+After the 100K gate every step runs the gap estimate (256 pairs x 30 samples through two 10-step Euler flows,
+~34 ms with TF32 on this GPU), which saturates the GPU; one CompFlow run alone takes ~4 h, and concurrent runs
+do not add throughput. BC-SAC takes ~2 h per run.
