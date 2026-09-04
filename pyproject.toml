@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["comp_flow_jax*"]
+
+[project]
+name = "comp-flow-jax"
+version = "0.1.0"
+description = "JAX/TPU implementation of Composite Flow Matching for RL with Shifted-Dynamics Data"
+requires-python = "==3.11.*"
+dependencies = [
+    # Learning stack. jax pinned to the version verified working on this
+    # v4-8; the tpu wheel lives in the `tpu` group below.
+    "flax==0.10.7",
+    "optax==0.2.8",
+    "distrax==0.1.5",
+    "chex",
+    # Physics stays on CPU: measured 22k-50k sim-step/s single threaded here
+    # vs 315 step/s for single-env MJX on this TPU. See docs/BACKEND.md.
+    "mujoco==3.10.0",
+    "numpy>=2.1",
+    "scipy==1.15.3",
+    "h5py==3.14.0",
+    # Exact OT (pot.emd) for OT-CFM couplings, called via jax.pure_callback.
+    "POT==0.9.5",
+    # D4RL source datasets come from the HF mirror; the d4rl package itself
+    # needs mujoco-py + gym 0.18 + py3.8 and cannot be installed here.
+    "huggingface-hub>=0.34",
+    "PyYAML==6.0.2",
+    "tqdm==4.67.1",
+    "wandb==0.19.10",
+    "tensorboardX==2.6.2.2",
+    "matplotlib==3.10.6",
+]
+
+[dependency-groups]
+tpu = ["jax[tpu]==0.6.2"]
+cpu = ["jax==0.6.2"]
+
+[tool.uv]
+default-groups = ["tpu"]
+# jax[tpu] and plain jax cannot coexist; pick one group.
+conflicts = [[{ group = "tpu" }, { group = "cpu" }]]
+
+# NOTE: regenerating envs/assets_v3 needs mujoco==2.3.3, which conflicts with
+# the mujoco==3.10.0 runtime dependency above. It is deliberately NOT a
+# dependency group: comp_flow_jax/envs/convert_assets.py builds its own
+# throwaway venv. The converted assets are checked in, so this runs once.

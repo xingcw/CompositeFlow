@@ -43,6 +43,25 @@ python train.py \
     --dir training_output/seed_0
 ```
 
+## ⚡ JAX / TPU implementation
+
+`vflow` has been ported to JAX and runs on TPU with CPU physics. Same CLI:
+
+```bash
+python -m comp_flow_jax.train \
+    --policy vflow --env hopper-friction --mode 1 \
+    --srctype medium-replay --shift_level 5.0 --seed 0 \
+    --n_samples 30 --dynamics_gap_reward_scale 0.1 --filter_percent 0.8 \
+    --dir training_output/seed_0
+```
+
+See [`comp_flow_jax/README.md`](comp_flow_jax/README.md) for setup,
+[`docs/BACKEND.md`](docs/BACKEND.md) for why physics stays on the CPU and what
+each backend choice cost, and [`docs/COUPLING.md`](docs/COUPLING.md) for the one
+algorithmic change (and the reference bugs that motivated it).
+
+The PyTorch code under `algo/` is untouched and remains the reference.
+
 ## 🧩 Training (Baselines)
 
 To train a single baseline agent (e.g., BC-SAC) on Hopper-Friction:

@@ -35,3 +35,15 @@ outputs/
 # Training and job logs
 training_output/
 slurm_logs/
+
+# JAX port
+.venv/
+*.npz
+# Downloaded D4RL cache, if COMP_FLOW_DATA_DIR points inside the repo
+.cache/
+comp_flow_jax.egg-info/
+.claude/
+# Experiment artifacts and cached checkpoints
+source_flow_cache/
+experiments/c1_ablation/
+experiments/*_out/
